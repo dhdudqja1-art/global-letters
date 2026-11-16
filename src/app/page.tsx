@@ -731,7 +731,10 @@ export default function Home() {
     await generateLetter("random");
   };
 
-  const generateLetter = async (type: ProductType) => {
+  const generateLetter = async (
+    type: ProductType,
+    paymentProof?: { orderID: string; paymentGrantToken: string }
+  ) => {
     setView("loading");
     try {
       // 황혼, 안개, 고요한 물가, 빈티지 창문 등 서정적 키워드 기반 Unsplash API featured 이미지와 15종 엄선 리스트 하이브리드 결합
@@ -748,7 +751,14 @@ export default function Home() {
       const response = await fetch("/api/generate-letter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ story: buildStoryPayload(), productType: type, giftRecipient, language: isKorean ? "ko" : "en" }),
+        body: JSON.stringify({
+          story: buildStoryPayload(),
+          productType: type,
+          giftRecipient,
+          language: isKorean ? "ko" : "en",
+          orderID: paymentProof?.orderID,
+          paymentGrantToken: paymentProof?.paymentGrantToken,
+        }),
       });
       if (response.status === 429) {
         setShowLimitModal(true);
@@ -1295,21 +1305,27 @@ export default function Home() {
                     onApprove={async (data, actions) => {
                       if (actions.order) {
                         await actions.order.capture();
-                        generateLetter(selectedProduct.id as ProductType);
+                        const verifyRes = await fetch("/api/verify-payment", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            orderID: data.orderID,
+                            productType: selectedProduct.id,
+                          }),
+                        });
+                        const verifyJson = await verifyRes.json().catch(() => ({}));
+                        if (!verifyRes.ok || !verifyJson.verified || !verifyJson.paymentGrantToken) {
+                          alert(verifyJson.error || "결제 서버 검증에 실패했습니다. 고객센터로 문의해 주세요.");
+                          return;
+                        }
+                        generateLetter(selectedProduct.id as ProductType, {
+                          orderID: data.orderID,
+                          paymentGrantToken: verifyJson.paymentGrantToken,
+                        });
                       }
                     }}
                   />
                 </div>
-
-                {/* 🛡️ 상용 운영 환경 보안: 일반 고객에게 결제 우회 버튼 노출 차단 (개발 모드 전용) */}
-                {process.env.NODE_ENV === "development" && (
-                  <button
-                    onClick={() => generateLetter(selectedProduct.id as ProductType)}
-                    className="mt-6 w-full py-3 bg-slate-50 border border-slate-100 text-slate-500 rounded-xl text-xs font-sans hover:bg-slate-100 transition-colors active:scale-95 cursor-pointer font-medium"
-                  >
-                    {t.testPaymentBypass}
-                  </button>
-                )}
                 
                 <button
                   onClick={() => setView("tier")}

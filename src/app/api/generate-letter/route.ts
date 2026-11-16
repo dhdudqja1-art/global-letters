@@ -1,55 +1,106 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { queryKnowledge, profileEmpathy } from "@/lib/psychologyEngine";
+import {
+  OFFICIAL_PRODUCT_CATALOG,
+  AllProductType,
+  consumeVerifiedPaymentGrant,
+  checkAndReserveRateLimitAndCost,
+  detectPromptInjectionAndExternalActionAttempt,
+} from "@/lib/securityControls";
 
 // OpenAI client initialization
 const openai = new OpenAI({
   apiKey: (process.env.OPENAI_API_KEY || "dummy-key-for-build").trim(),
 });
 
-// Simple in-memory rate limiting store (Works for basic serverless protection)
-const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
-const RATE_LIMIT_MAX = 99999; // 하루 무료 제한 횟수 (테스트를 위해 비활성화 수준으로 상향)
-const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_RAW_BODY_BYTES = 24_576; // 24 KB maximum payload
 
 export async function POST(req: Request) {
   try {
-    const { story, productType, giftRecipient, language = "ko" } = await req.json();
+    // 1. Early payload size check (413 Payload Too Large) BEFORE any OpenAI call
+    const rawBodyText = await req.text();
+    if (Buffer.byteLength(rawBodyText, "utf8") > MAX_RAW_BODY_BYTES) {
+      return NextResponse.json(
+        { error: "Request payload exceeds maximum allowed size (413 Payload Too Large)." },
+        { status: 413 }
+      );
+    }
+
+    let parsedBody: any;
+    try {
+      parsedBody = JSON.parse(rawBodyText);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON payload." }, { status: 400 });
+    }
+
+    const {
+      story: rawStory,
+      productType: rawProductType,
+      giftRecipient,
+      language = "ko",
+      orderID,
+      paymentGrantToken,
+    } = parsedBody || {};
+
+    const productType: string = String(rawProductType || "free");
+    const productSpec = OFFICIAL_PRODUCT_CATALOG[productType as AllProductType];
+    if (!productSpec) {
+      return NextResponse.json({ error: "Invalid productType specified." }, { status: 400 });
+    }
+
+    if (typeof rawStory === "string" && rawStory.length > productSpec.maxInputChars) {
+      return NextResponse.json(
+        { error: `Story length exceeds maximum limit (${productSpec.maxInputChars} chars) for ${productType} tier.` },
+        { status: 413 }
+      );
+    }
+
+    if ((!rawStory || !String(rawStory).trim()) && productType !== "random") {
+      return NextResponse.json({ error: "Story is required" }, { status: 400 });
+    }
+
+    // 2. Paid Tier Entitlement Check (401/403/409) BEFORE any OpenAI call
+    if (productSpec.paid) {
+      const grantCheck = consumeVerifiedPaymentGrant(orderID, productType, paymentGrantToken);
+      if (!grantCheck.allowed) {
+        return NextResponse.json(
+          { error: grantCheck.error, verified: false, auditId: grantCheck.auditId },
+          { status: grantCheck.httpStatus }
+        );
+      }
+    }
+
+    // 3. Shared Atomic Rate Limiting & Cost Cap Check (429) BEFORE any OpenAI call
+    const forwardedFor = req.headers.get("x-forwarded-for");
+    const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : "unknown-ip";
+    const sessionActor = (req.headers.get("x-session-id") || ip || "anonymous").trim();
+
+    if (productType !== "random") {
+      const quotaCheck = checkAndReserveRateLimitAndCost({
+        actorKey: sessionActor,
+        productType: productType as AllProductType,
+      });
+      if (!quotaCheck.allowed) {
+        return NextResponse.json(
+          { error: quotaCheck.error, auditId: quotaCheck.auditId },
+          { status: quotaCheck.httpStatus }
+        );
+      }
+    }
+
+    // 4. Indirect Prompt Injection & External Write Action Gate
+    const injectionCheck = detectPromptInjectionAndExternalActionAttempt(String(rawStory || ""));
+    const story = injectionCheck.sanitizedText;
 
     // 🧠 글로벌 뇌과학/심리학 RAG 지식 피더 쿼리 (Node.js Native Engine - Vercel Serverless 호환)
     const scientificPrescription = queryKnowledge(story || "안부 편지");
 
     // 🧠 공감 프로파일러 심리 분석 쿼리 (Node.js Native Empathy Profiler Agent - Vercel Serverless 호환)
-    const emotionProfile = await profileEmpathy(story || "안부 편지", openai);
-
-    // 1. Get user IP for rate limiting
-    const forwardedFor = req.headers.get("x-forwarded-for");
-    const ip = forwardedFor ? forwardedFor.split(",")[0] : "unknown-ip";
-
-    // 2. Rate Limiting Logic (Only apply to FREE/RANDOM tier)
-    if (productType === "free" || productType === "random") {
-      const now = Date.now();
-      const userLimit = rateLimitMap.get(ip) || { count: 0, lastReset: now };
-
-      if (now - userLimit.lastReset > RATE_LIMIT_WINDOW_MS) {
-        userLimit.count = 0;
-        userLimit.lastReset = now;
-      }
-
-      if (userLimit.count >= RATE_LIMIT_MAX) {
-        return NextResponse.json(
-          { error: "일일 무료 이용 횟수를 초과했습니다. 유료 처방전을 이용해 보세요!" },
-          { status: 429 }
-        );
-      }
-
-      userLimit.count += 1;
-      rateLimitMap.set(ip, userLimit);
-    }
-
-    if (!story && productType !== "random") {
-      return NextResponse.json({ error: "Story is required" }, { status: 400 });
-    }
+    const emotionProfile =
+      productType === "random"
+        ? await profileEmpathy("안부 편지")
+        : await profileEmpathy(story || "안부 편지", openai);
 
     // ⚡ [Fast Track] 오늘의 문장(random)은 100% 무중단 0.1초 즉시 처방
     if (productType === "random") {

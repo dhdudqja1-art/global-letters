@@ -376,7 +376,11 @@ export default function AdminDashboard() {
     try {
       const response = await fetch("/api/upload-knowledge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminSecret}`,
+          "x-admin-role": "admin",
+        },
         body: JSON.stringify({ text: knowledgeText }),
       });
       const data = await response.json();

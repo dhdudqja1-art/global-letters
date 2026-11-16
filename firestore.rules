@@ -1,8 +1,77 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function isOwner(ownerUid) {
+      return isSignedIn() && request.auth.uid == ownerUid;
+    }
+
+    // 1. Default deny all access unless explicitly permitted below
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // 2. Payment & Webhook Ledgers: Strictly Admin / Server Admin SDK only
+    match /payments/{paymentId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /verified_orders/{orderId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /webhook_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // 3. Private Customer Letters / Consultations: Strictly Owner or Admin only
+    match /letters/{letterId} {
+      allow read: if isOwner(resource.data.ownerUid) || isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.keys().hasAll(['ownerUid', 'createdAt']);
+      allow update, delete: if isOwner(resource.data.ownerUid) || isAdmin();
+    }
+
+    match /consultations/{consultationId} {
+      allow read: if isOwner(resource.data.ownerUid) || isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isOwner(resource.data.ownerUid) || isAdmin();
+    }
+
+    // 4. Public Sanitized Reviews: Read-only for public, authenticated creation with schema bounds, Admin moderation
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 1000;
+      allow update, delete: if isAdmin();
+    }
+
+    // 5. Traffic Logs & Rate Limit Counters: Admin read-only; writes via Server Admin SDK only
+    match /traffic_logs/{dateId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /rate_limits/{bucketId} {
+      allow read, write: if false;
     }
   }
 }

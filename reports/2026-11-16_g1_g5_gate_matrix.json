@@ -1,0 +1,100 @@
+{
+  "report_type": "g1_g5_gate_matrix",
+  "version": "2026-11-16.1",
+  "generated_at": "2026-11-16T03:56:45.000Z",
+  "current_civilization_stage": "5/7 유지 (6/7 승급 후보 조건 중 로컬 격리 검증은 완료되었으나, 실운영 독립 블라인드 평가 및 신규 게시물 실측 24h+72h 대기)",
+  "promotion_rule": "G1~G5 모두 실제 배포/운영/사람 검수에 근거한 독립 증거가 확보될 때만 6/7 승급 후보. 그렇지 않으면 5/7 유지.",
+  "gates": [
+    {
+      "gate_id": "G1",
+      "name": "생산 (Apps Script → Meta → Notion 실행 추적 로그와 멱등 재시도)",
+      "status": "부분완료",
+      "sub_status": {
+        "local_engine_and_idempotency_test": "완료·격리검증",
+        "apps_script_cloud_source_access": "원본 접근 불가"
+      },
+      "evidence_files": [
+        "C:/Users/user/Desktop/global-letters/src/lib/gates/index.ts",
+        "C:/Users/user/Desktop/global-letters/scripts/g1_apps_script_briefing.gs",
+        "C:/Users/user/Desktop/reports/2026-11-16_test_results.json"
+      ],
+      "verified_facts": [
+        "고유 run_id, UTC/KST 시각, HTTP 상태, 원천 API 호출수, 스냅샷수, 재시도 횟수, media_id+observed_bucket+source 유일키 중복 방지(동일 run_id 재실행 시 중복 0건) 및 HTTP 429/500/503 제한 재시도(3회) 후 QUEUED_FOR_RETRY -> RECOVERED 상태 전이 로컬 검증 통과.",
+        "2026-11-16 04:28 아침 브리핑 연결(4/28일 누적)은 확인되었으나, Google Drive에 호스팅된 Apps Script 원본 프로젝트 트리거 로그는 로컬 파일시스템에서 직접 조회 불가하여 '실제 실행 로그 미확인 / 원본 접근 불가'로 구분하고 이식용 .gs 스크립트를 제공함."
+      ],
+      "next_human_action": "Google Apps Script 에디터에 scripts/g1_apps_script_briefing.gs의 run_id 및 유일키 로깅 블록을 반영하고 ScriptProperties 설정 확인"
+    },
+    {
+      "gate_id": "G2",
+      "name": "AI 품질 (Golden Set 15건 독립 평가 자동화 및 원문 문체 보존)",
+      "status": "완료·격리검증",
+      "sub_status": {
+        "local_15_case_fixture_reproduction": "완료·격리검증",
+        "blind_external_human_or_separate_model_signoff": "추가 사람 승인 필요"
+      },
+      "qualification_label": "모의 통과 (독립평가 대기)",
+      "evidence_files": [
+        "C:/Users/user/Desktop/global-letters/src/lib/gates/index.ts",
+        "C:/Users/user/Desktop/reports/2026-11-16_test_results.json"
+      ],
+      "verified_facts": [
+        "Golden Set 15건(NULL vs 0 분리 3건, 상태 머신/승인 2건, 간접 프롬프트 인젝션 4건, 본계정/마음을 묻다 문체·금지어·허위진단 차단 4건, 후킹 제목 충돌 2건) 15/15 재현 통과.",
+        "프롬프트 인젝션 4건 모두 외부 쓰기 호출 0회 확인.",
+        "유료 API 과금 방지 지침에 따라 로컬 결정론적 규칙 심판기로 검증하였으며, 6단계 승급을 위한 별도 모델/사람 블라인드 검수 전까지 '모의 통과 (독립평가 대기)'로 분류."
+      ],
+      "next_human_action": "15건 Golden Set 채점표에 대한 사람 검수자 최종 서명 또는 별도 평가 모델 블라인드 실행 승인"
+    },
+    {
+      "gate_id": "G3",
+      "name": "성과 피드백 (게시물별 실제 24/72시간 측정과 개선 의사결정 닫힌 고리)",
+      "status": "부분완료",
+      "sub_status": {
+        "four_timestamp_ledger_and_closed_loop_logic": "완료·격리검증",
+        "live_new_post_exact_24h_72h_pair": "추가 사람 승인 필요"
+      },
+      "evidence_files": [
+        "C:/Users/user/Desktop/global-letters/src/lib/gates/index.ts",
+        "C:/Users/user/Desktop/reports/2026-11-16_test_results.json"
+      ],
+      "verified_facts": [
+        "planned_at, observed_at, platform_source_time, ingested_at 4대 시각 분리 및 과거 11/12 게시물의 71h57m32s 관측치를 정확 72h로 둔갑시키지 않고 APPROXIMATE_EARLY(-148초)로 자동 분류하는 로직 검증 완료.",
+        "과거 관측치 덮어쓰기 0회(차단), NULL과 실제 0 분리, 24h+72h 관측 쌍과 차기 게시물 개선 가설·승인·후속 media_id 연결 구조 검증 완료.",
+        "과거 게시물에는 정확 +24h/+72h 실측 쌍이 없으므로 소급 생성하지 않았으며, 다음 승인된 신규 게시물 발행 후 +24h/+72h 실측이 필요함."
+      ],
+      "next_human_action": "신규 게시물 1건 발행 승인 후 +24h 및 +72h 시점의 실제 Meta API 관측치 수집 및 개선 가설 승인"
+    },
+    {
+      "gate_id": "G4",
+      "name": "복구 (미리보기 장애 복구 및 구버전 Python 오류 회귀검증)",
+      "status": "완료·격리검증",
+      "evidence_files": [
+        "C:/Users/user/Desktop/global-letters/src/lib/psychologyEngine.ts",
+        "C:/Users/user/Desktop/global-letters/src/lib/gates/index.ts",
+        "C:/Users/user/Desktop/reports/2026-11-16_test_results.json"
+      ],
+      "verified_facts": [
+        "OS PATH에서 python 실행 파일을 완전히 제거한 상태(PATH='')에서도 Node.js 네이티브 queryKnowledge 및 extractProfileFallback이 오류 0건으로 정상 작동함을 회귀 검증.",
+        "격리 스냅샷 복원 및 중복 메시지 재전송 시 중복 생성 0건, 원장 1:1 정합성(RPO = 0건, RTO = 1ms) 검증 완료.",
+        "기존 Preview 배포(dpl_3RZMXq63YRDUj8JPxNNVa1tDHfCA, dpl_HCfSyB6ww2swXqKx3NBMNoDmXt5u)에서도 Python 호출 오류 0건 확인 완료."
+      ],
+      "next_human_action": "필요 시 이번 P0/P1 보안 패치 브랜치(fix/six-stage-safety-20261116)의 Preview 배포 승인"
+    },
+    {
+      "gate_id": "G5",
+      "name": "승인 통제 (모든 외부 쓰기 작업의 사람 승인·최소권한·비용 통제)",
+      "status": "완료·격리검증",
+      "evidence_files": [
+        "C:/Users/user/Desktop/global-letters/src/lib/gates/index.ts",
+        "C:/Users/user/Desktop/global-letters/src/lib/securityControls.ts",
+        "C:/Users/user/Desktop/reports/2026-11-16_test_results.json"
+      ],
+      "verified_facts": [
+        "승인 없는 공개 게시·댓글·DM·메일·결제·삭제 0회 실행 확인.",
+        "다른 액션의 승인 토큰 재활용 0회, 만료/취소된 승인 또는 변조된 payload 0회 실행 확인.",
+        "LLM 출력·외부 문서·이메일 유래 승인 티켓 등록 원천 차단.",
+        "승인된 FakeSink 정확히 1회만 실행(one-time nonce 재전송 차단) 및 비용 임계 초과 시 즉시 중단(haltedByCostAlert = true) 검증 완료."
+      ],
+      "next_human_action": "운영 환경에 ADMIN_SECRET_KEY 및 PayPal 자격증명 설정 후 승인 게이트 적용"
+    }
+  ]
+}

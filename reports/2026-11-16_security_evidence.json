@@ -1,0 +1,53 @@
+{
+  "report_type": "security_evidence",
+  "version": "2026-11-16.1",
+  "generated_at": "2026-11-16T03:56:30.000Z",
+  "project": {
+    "name": "global-letters",
+    "vercel_project_id": "prj_gZyk6RXhNhbsGUvhyh7SJqcGmTRO",
+    "vercel_team_id": "team_e3K9DPzWJgGnTFpZXlzBMB6y",
+    "current_production_deployment_id": "dpl_DY6x9ocNWGLQsr9bGtbZV6Q8dBFR",
+    "current_production_commit_meta": "f93cceaf6ccd7222287b5913dbd54f4f598df487",
+    "github_remote_main_sha": "5a224f23e2c2aafb700a2a7e9ce429fe180bda85",
+    "local_branch": "fix/six-stage-safety-20261116",
+    "local_baseline_commit_sha": "73a85d50dc879dbb6fcdc4d113041901fcfe23a5"
+  },
+  "baseline_env_metadata_audit": {
+    "production_visible_env_keys": [
+      "OPENAI_API_KEY",
+      "OPENAI_ASSISTANT_ID",
+      "GCLOUD_PROJECT",
+      "OPENAI_VECTOR_STORE_ID",
+      "GOOGLE_APPLICATION_CREDENTIALS_JSON"
+    ],
+    "production_env_count": 5,
+    "total_env_records_across_targets": 15,
+    "paypal_env_keys_present_in_vercel": false,
+    "secrets_printed_or_logged": 0
+  },
+  "static_scanner_evidence": {
+    "civilization6_security_gate_zip_status": "NOT_PRESENT_ON_LOCAL_DISK (originated in ChatGPT container; executed local equivalent scripts/security_gate.py --strict-missing)",
+    "command": "python scripts/security_gate.py --strict-missing",
+    "exit_code": 0,
+    "checked_files_count": 10,
+    "findings_count": 0,
+    "findings": [],
+    "static_pass": true,
+    "disclaimer": "Static pattern scanning PASS does NOT by itself guarantee complete runtime or operational security."
+  },
+  "p0_p1_remediation_status": {
+    "task_00_baseline": "완료·격리검증",
+    "task_01_paypal_verify_fail_closed": "완료·격리검증",
+    "task_02_paypal_webhook_signature_idempotency": "완료·격리검증",
+    "task_03_firestore_least_privilege_rules": "부분완료 (로컬 규칙 교체 및 에뮬레이터 5종 테스트 PASS; 실제 Firebase 서버 활성 규칙 해시 대조 및 운영 배포는 사용자 승인 대기)",
+    "task_04_admin_get_and_mock_removal": "완료·격리검증",
+    "task_05_ai_rate_limit_cost_cap_and_injection_gate": "완료·격리검증"
+  },
+  "production_mutations_performed": {
+    "vercel_production_deploy": 0,
+    "paypal_live_calls": 0,
+    "firestore_production_rules_deploy": 0,
+    "instagram_threads_smtp_live_sends": 0,
+    "paid_api_cost_usd": 0
+  }
+}

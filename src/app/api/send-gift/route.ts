@@ -269,12 +269,17 @@ export async function GET(req: Request) {
       clientKey = authHeader.substring(7);
     }
 
-    const adminSecretKey = process.env.ADMIN_SECRET_KEY || "dev-secret-key-1234";
+    const adminSecretKey = (process.env.ADMIN_SECRET_KEY || "").trim();
 
-    if (!clientKey || clientKey !== adminSecretKey) {
+    if (
+      !adminSecretKey ||
+      adminSecretKey === "dev-secret-key-1234" ||
+      !clientKey ||
+      clientKey !== adminSecretKey
+    ) {
       console.warn(`[Security Warning] Unauthorized attempt to trigger send-gift batch dispatcher.`);
       return NextResponse.json(
-        { error: "Unauthorized. Valid admin secret key is required." },
+        { error: "Unauthorized. Valid configured ADMIN_SECRET_KEY is required." },
         { status: 401 }
       );
     }

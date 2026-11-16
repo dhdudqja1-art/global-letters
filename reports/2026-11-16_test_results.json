@@ -1,0 +1,173 @@
+{
+  "executed_at": "2026-11-16T04:02:21.084Z",
+  "paid_external_api_calls": 0,
+  "total_cost_usd": 0,
+  "all_suites_passed": true,
+  "suites": {
+    "Task_01_PayPal_Verify_FailClosed": {
+      "status": "PASS",
+      "cases": {
+        "missing_env_keys_returns_verified_false": {
+          "httpStatus": 503,
+          "verified": false
+        },
+        "fake_order_id_rejected": {
+          "httpStatus": 404,
+          "verified": false
+        },
+        "uncaptured_order_rejected": {
+          "httpStatus": 400,
+          "verified": false
+        },
+        "valid_sandbox_capture_approved": {
+          "httpStatus": 200,
+          "verified": true,
+          "auditId": "aud_1794801741069_04c26799"
+        },
+        "duplicate_order_and_delivery_blocked": {
+          "secondVerifyHttpStatus": 409,
+          "firstDeliveryAllowed": true,
+          "secondDeliveryAllowed": false,
+          "secondDeliveryHttpStatus": 409
+        }
+      }
+    },
+    "Task_02_PayPal_Webhook_Signature_And_Idempotency": {
+      "status": "PASS",
+      "cases": {
+        "missing_headers_rejected_401": {
+          "httpStatus": 401,
+          "stateChanged": false
+        },
+        "official_verification_failure_rejected_401": {
+          "httpStatus": 401,
+          "stateChanged": false
+        },
+        "valid_sandbox_event_processed_once": {
+          "httpStatus": 200,
+          "idempotencyKey": "webhook:WH-EVT-1001:CAP-WH-9001"
+        },
+        "same_event_replayed_3_times_processed_once": {
+          "replay2Status": "duplicate_ignored",
+          "replay3Status": "duplicate_ignored",
+          "totalProcessedCount": 1
+        },
+        "mismatched_payee_amount_currency_rejected": {
+          "httpStatus": 400,
+          "stateChanged": false
+        }
+      }
+    },
+    "Task_03_Firestore_Rules_Least_Privilege": {
+      "status": "PASS",
+      "cases": {
+        "open_wildcard_rule_removed": true,
+        "anonymous_read_write_denied": true,
+        "user_A_accessing_user_B_private_denied": true,
+        "owner_accessing_own_document_allowed": true,
+        "non_admin_payment_modification_denied": true,
+        "admin_least_privilege_payment_access_allowed": true
+      }
+    },
+    "Task_04_Admin_Routes_And_Mock_Removal": {
+      "status": "PASS",
+      "cases": {
+        "anonymous_admin_request_rejected_401": true,
+        "get_cleanup_deletes_zero_files": true,
+        "missing_key_upload_returns_success_false": true,
+        "authenticated_staging_admin_authorized": true
+      }
+    },
+    "Task_05_RateLimit_Concurrency_CostCap_And_InjectionGate": {
+      "status": "PASS",
+      "cases": {
+        "unauthenticated_paid_request_rejected_401": true,
+        "concurrent_50_requests_with_limit_3": {
+          "limitN": 3,
+          "allowedCount": 3,
+          "rejected429Count": 47,
+          "openaiCallsExceededLimit": false
+        },
+        "large_input_413_enforced_in_route": true,
+        "indirect_injection_neutralized_with_zero_writes": {
+          "detected": true,
+          "matchedPatterns": [
+            "SYSTEM_OVERRIDE",
+            "EXTERNAL_SNS_ACTION",
+            "EXTERNAL_PAYMENT_ACTION"
+          ],
+          "externalWriteToolsCalled": 0
+        }
+      }
+    },
+    "Task_06_G1_Briefing_Traceability_And_Idempotency": {
+      "status": "PASS",
+      "cases": {
+        "single_run_creates_one_row_zero_duplicates": true,
+        "same_run_id_replay_creates_zero_duplicates": true,
+        "http_429_500_bounded_retry_and_failure_log": {
+          "status": "FAILED_QUEUED",
+          "retries": 3,
+          "failureReason": "Source API failed with HTTP 503 after 3 retries"
+        },
+        "failure_to_recovery_state_transition_verified": {
+          "finalRunStatus": "RECOVERED",
+          "deadLetterState": "RECOVERED",
+          "totalUniqueLedgerRows": 2
+        }
+      }
+    },
+    "Task_07_G2_Golden_Set_15_Independent_Evaluator": {
+      "status": "PASS",
+      "qualification_note": "모의 통과 (독립 외부 평가자/실API 블라인드 검수 대기)",
+      "total_cases": 15,
+      "reproducible_count": 15,
+      "all_matched_expected": true,
+      "injection_external_writes_total": 0
+    },
+    "Task_08_G3_24h_72h_Closed_Loop_Ledger": {
+      "status": "PASS",
+      "cases": {
+        "same_media_id_24h_and_72h_linked": true,
+        "historical_overwrite_count": 0,
+        "overwrite_attempts_blocked": 1,
+        "null_and_zero_preserved_strictly": true,
+        "early_71h57m32s_detected_as_approximate": {
+          "window_accuracy": "APPROXIMATE_EARLY",
+          "drift_seconds": -148
+        },
+        "improvement_decision_linked": {
+          "decision_id": "dec_MEDIA_20261112_01_1794801741082",
+          "source_media_id": "MEDIA_20261112_01",
+          "obs_24h_id": "obs_MEDIA_20261112_01:24H_961a6a",
+          "obs_72h_id": "obs_MEDIA_20261112_01:72H_11d2cb",
+          "hypothesis": "첫 문단 공감 문장 길이를 2문장으로 축약하여 24h->72h 저장 전환율을 개선한다.",
+          "approved_by": "human_operator_oyb",
+          "approved_at": "2026-11-16T04:02:21.082Z",
+          "followup_media_id": "MEDIA_20261116_NEXT_CANDIDATE"
+        }
+      }
+    },
+    "Task_09_G4_Chaos_And_Recovery": {
+      "status": "PASS",
+      "cases": {
+        "noPythonPathRegressionPass": true,
+        "httpFailureNotDisguisedPass": true,
+        "retryDuplicateCount": 0,
+        "ledgerReconciledOneToOne": true,
+        "rtoMs": 1,
+        "rpoLostRecords": 0
+      }
+    },
+    "Task_10_G5_Action_Approval_Nonce_And_Cost_Gate": {
+      "status": "PASS",
+      "cases": {
+        "unapproved_external_writes_count": 0,
+        "cross_action_token_reuse_count": 0,
+        "modified_payload_or_expired_count": 0,
+        "approved_fakesink_executed_once": true,
+        "cost_threshold_exceeded_halts_writes": true
+      }
+    }
+  }
+}
